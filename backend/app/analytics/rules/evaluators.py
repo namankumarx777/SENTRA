@@ -6,6 +6,7 @@ from typing import Any
 import polars as pl
 
 from app.analytics.rules.definitions import (
+    MIN_CRITICAL_CASES,
     MIN_EXPECTED_MONITORED_ASSETS,
     MIN_MONITORING_COVERAGE,
     MIN_MONITORING_GAP_ASSETS,
@@ -46,9 +47,30 @@ def evaluate_r001(rule: RuleDefinition, bundle: FeatureBundle) -> tuple[list[Fin
 
 
 def evaluate_r002(rule: RuleDefinition, bundle: FeatureBundle) -> tuple[list[Finding], list[Evidence]]:
-    candidates = bundle["case_features"].filter(
+    guard_threshold = int(rule.thresholds.get("minimum_critical_cases", MIN_CRITICAL_CASES))
+    case_candidates = bundle["case_features"].filter(
         (pl.col("severity") == "Critical") & (~pl.col("is_escalated"))
     )
+
+    # Entity-level population guard: only flag entities with a sufficient number
+    # of critical cases so that a single stray critical case does not generate a
+    # noisy supervisory signal. The population is derived from the full critical
+    # case volume, escalated or not.
+    if "entity_features" in bundle and "critical_case_count" in bundle["entity_features"].columns:
+        pop = bundle["entity_features"].select(["entity_id", "critical_case_count"])
+        pop = pop.with_columns(pl.col("critical_case_count").fill_null(0).cast(pl.Int64))
+        eligible = pop.filter(pl.col("critical_case_count") >= guard_threshold).get_column("entity_id")
+    else:
+        counts = (
+            bundle["case_features"]
+            .filter(pl.col("severity") == "Critical")
+            .group_by("entity_id")
+            .len()
+            .rename({"len": "critical_case_count"})
+        )
+        eligible = counts.filter(pl.col("critical_case_count") >= guard_threshold).get_column("entity_id")
+
+    candidates = case_candidates.filter(pl.col("entity_id").is_in(eligible.to_list())).sort(["entity_id", "id"])
     findings: list[Finding] = []
     evidence: list[Evidence] = []
     for row in candidates.select(["id", "entity_id", "alert_id", "severity", "is_escalated"]).sort(["entity_id", "id"]).to_dicts():

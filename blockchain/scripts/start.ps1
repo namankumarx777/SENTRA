@@ -1,7 +1,7 @@
 # SENTRA Hyperledger Fabric Windows PowerShell Wrapper
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $NetworkDir = Join-Path $ScriptDir "..\network"
-$ChaincodeDir = Join-Path $ScriptDir "..\chaincode\SENTRA-integrity"
+$ChaincodeDir = Join-Path $ScriptDir "..\chaincode\sat-sa-integrity"
 
 Write-Host "============================================================" -ForegroundColor Cyan
 Write-Host " Starting SENTRA Hyperledger Fabric Local Permissioned Ledger" -ForegroundColor Cyan

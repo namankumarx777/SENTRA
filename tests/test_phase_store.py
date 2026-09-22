@@ -7,6 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.analytics.store import PhaseNotFoundError, PhaseStore
+from app.config import settings
 from app.main import app
 
 PHASE_ROUTES = [
@@ -40,7 +41,8 @@ def _write_fixture(output_dir: Path, with_data: bool = True) -> Path:
 
 
 @pytest.fixture
-def client() -> TestClient:
+def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> TestClient:
+    monkeypatch.setattr(settings, "data_dir", tmp_path)
     return TestClient(app)
 
 

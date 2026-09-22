@@ -265,11 +265,17 @@ def _norm_ns_gap(finding: StandardizedFinding, entity_metadata: dict[str, Any]) 
 
 
 def _norm_ns001(finding: StandardizedFinding, entity_metadata: dict[str, Any], by_detector: list[StandardizedFinding]) -> NormalizedSignal:
-    return _norm_ns_ratio(finding, entity_metadata, denominator_key="expected_monitored_assets")
+    # NS001 observed_value is the count of assets WITH alert activity; the risk
+    # grows with the GAP (1 - coverage_rate), not with observed activity. Use the
+    # gap-based normalizer so higher absence of expected evidence maps to higher risk.
+    return _norm_ns_gap(finding, entity_metadata)
 
 
 def _norm_ns002(finding: StandardizedFinding, entity_metadata: dict[str, Any], by_detector: list[StandardizedFinding]) -> NormalizedSignal:
-    return _norm_ns_ratio(finding, entity_metadata, denominator_key="critical_assets")
+    # NS002 observed_value counts critical assets WITH activity; the risk grows
+    # with the share of INACTIVE critical assets (gap_value). Gap-based scoring is
+    # correct here too.
+    return _norm_ns_gap(finding, entity_metadata)
 
 
 def _norm_ns003(finding: StandardizedFinding, entity_metadata: dict[str, Any], by_detector: list[StandardizedFinding]) -> NormalizedSignal:

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import datetime
+import html
 import json
 from pathlib import Path
 from typing import Any
@@ -31,6 +32,16 @@ def generate_entity_dossier_data(entity_id: str, data_root: str | Path | None = 
     if df_risk.is_empty():
         raise ValueError(f"Entity '{entity_id}' not found in supervisory risk assessment.")
     entity_risk = df_risk.to_dicts()[0]
+
+    # Compatibility aliases: superseded scoring columns are read through the
+    # current canonical names. Values already present under the canonical names
+    # take precedence (setdefault), so this is safe for both old and new schemas.
+    canonical_map = {
+        "overall_risk_band": ("risk_band", "LOW"),
+        "overall_risk_score": ("overall_score", 0.0),
+    }
+    for canonical, (legacy, default) in canonical_map.items():
+        entity_risk.setdefault(canonical, entity_risk.get(legacy, default))
 
     # 2. Load entity metadata if available
     entity_meta = {}
@@ -155,8 +166,25 @@ def generate_entity_dossier_data(entity_id: str, data_root: str | Path | None = 
     return dossier
 
 
+def _escape_html_payload(value: Any) -> Any:
+    """HTML-escape every string in the payload recursively.
+
+    Numbers, ``None``, and other non-string values are left untouched so that
+    numeric formatting (e.g. ``{score:.2f}``) keeps working. This guarantees no
+    ingress-contributed string reaches the rendered HTML unescaped.
+    """
+    if isinstance(value, str):
+        return html.escape(value, quote=True)
+    if isinstance(value, dict):
+        return {k: _escape_html_payload(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_escape_html_payload(v) for v in value]
+    return value
+
+
 def render_entity_dossier_html(dossier: dict[str, Any]) -> str:
     """Render a standalone, print-ready HTML regulatory audit brief."""
+    dossier = _escape_html_payload(dossier)
     ent = dossier["entity"]
     summary = dossier["supervisory_summary"]
     dims = dossier["dimensions"]
@@ -330,8 +358,17 @@ def render_entity_dossier_html(dossier: dict[str, Any]) -> str:
     cursor: pointer;
   }}
   @media print {{
-    .print-btn-bar {{ display: none; }}
-    body {{ padding: 0; }}
+    .print-btn-bar {{ display: none !important; }}
+    body {{
+      padding: 0 !important;
+      background: #ffffff !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }}
+    .card, th, td, .directive-box, .badge {{
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }}
   }}
 </style>
 </head>

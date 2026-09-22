@@ -36,9 +36,27 @@ def test_r001_rapid_critical_closure_and_guards() -> None:
 
 
 def test_r002_critical_without_escalation() -> None:
-    findings, evidence = evaluate_r002(_rule("R002", "Escalation", "High"), _case_bundle())
+    bundle = {
+        "case_features": pl.DataFrame({
+            "id": ["CASE-1"], "entity_id": ["CSE-001"], "alert_id": ["ALT-1"], "severity": ["Critical"],
+            "is_closed": [True], "investigation_minutes": [5.0], "is_escalated": [False],
+            "is_remediated": [False], "opened_at": [datetime(2025, 1, 1)],
+        }),
+        "entity_features": pl.DataFrame({
+            "entity_id": ["CSE-001"], "critical_case_count": [10],
+        }),
+    }
+    # Threshold comes from the rule; the test rule has no minimum_critical_cases, so MIN_CRITICAL_CASES=5 is used.
+    findings, evidence = evaluate_r002(_rule("R002", "Escalation", "High"), bundle)
     assert len(findings) == 1 and findings[0].severity == "High" and evidence
-    assert not evaluate_r002(_rule("R002", "Escalation", "High"), _case_bundle(escalated=True))[0]
+    assert not evaluate_r002(_rule("R002", "Escalation", "High"), {
+        "case_features": bundle["case_features"],
+        "entity_features": bundle["entity_features"].with_columns(pl.col("critical_case_count").replace(10, 4)),
+    })[0]
+    assert not evaluate_r002(_rule("R002", "Escalation", "High"), {
+        "case_features": bundle["case_features"].with_columns(pl.col("is_escalated").replace(False, True)),
+        "entity_features": bundle["entity_features"],
+    })[0]
 
 
 def test_r003_repeated_alerts_without_remediation() -> None:

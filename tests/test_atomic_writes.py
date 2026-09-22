@@ -4,8 +4,8 @@ from pathlib import Path
 
 import polars as pl
 
-from backend.app.analytics.rules.engine import write_rule_outputs
-from backend.app.analytics.rules.models import RuleRunResult
+from app.analytics.rules.engine import write_rule_outputs
+from app.analytics.rules.models import RuleRunResult
 
 def test_atomic_write_rules_engine():
     # Create an empty result

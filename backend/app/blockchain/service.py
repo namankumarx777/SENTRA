@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -23,6 +24,8 @@ from app.blockchain.models import (
     VerificationResponse,
 )
 
+logger = logging.getLogger("satsa.blockchain")
+
 PHASE_DIRS = (
     ("phase5", "phase5"),
     ("phase5", "phase5-final"),
@@ -39,6 +42,32 @@ PHASE_DIRS = (
     ("phase9", "supervisory_risk"),
     ("phase9", "supervisory_risk-final"),
 )
+
+
+def _resolve_source_phase(finding: dict[str, Any], fallback_phase: str) -> str:
+    """Resolve the finding's owning analytical phase.
+
+    The phase is derived from the finding's own detector metadata (rule id),
+    never from the store-search loop position, so a finding is attributed to
+    the phase that produced it even when a search visits multiple stores.
+    """
+    rule_id = str(finding.get("rule_id", "") or finding.get("detector_id", ""))
+    rule_phase = _rule_to_phase(rule_id)
+    if rule_phase is not None:
+        return rule_phase
+    return fallback_phase
+
+
+def _rule_to_phase(rule_id: str) -> str | None:
+    """Map a detector id to its owning analytical phase (deterministic)."""
+    mapping = {
+        "R001": "phase5", "R002": "phase5", "R003": "phase5", "R004": "phase5", "R005": "phase5",
+        "EG001": "phase6", "EG002": "phase6", "EG003": "phase6", "EG004": "phase6",
+        "NS001": "phase7", "NS002": "phase7", "NS003": "phase7", "NS004": "phase7", "NS005": "phase7",
+        "AN001": "phase8",
+        "PB001": "phase8", "PB002": "phase8", "PB003": "phase8", "PB004": "phase8",
+    }
+    return mapping.get(rule_id)
 
 
 def _find_finding_in_stores(finding_id: str, output_path: str | None = None) -> tuple[dict[str, Any], list[dict[str, Any]], str]:
@@ -102,12 +131,13 @@ class BlockchainIntegrityService:
         output_path: str | None = None,
     ) -> tuple[LedgerRecord, str]:
         finding, _, phase = _find_finding_in_stores(finding_id, output_path)
+        source_phase = _resolve_source_phase(finding, phase)
         digest = hash_finding(finding)
         commitment = FindingCommitment(
             recordId=finding_id,
             entityId=str(finding.get("entity_id", "")),
             findingHash=digest,
-            sourcePhase=phase,
+            sourcePhase=source_phase,
             detectorId=str(finding.get("rule_id", "")),
             createdAt=datetime.now(timezone.utc).isoformat(),
             registeredBy="SENTRA",
@@ -121,12 +151,19 @@ class BlockchainIntegrityService:
         output_path: str | None = None,
     ) -> tuple[LedgerRecord, str]:
         _, evidence_list, _ = _find_finding_in_stores(finding_id, output_path)
-        target_ev = next((ev for ev in evidence_list if str(ev.get("id") or ev.get("evidence_id")) == evidence_id or str(ev.get("source_id")) == evidence_id), None)
+        target_ev = next(
+            (
+                ev
+                for ev in evidence_list
+                if str(ev.get("id") or ev.get("evidence_id")) == evidence_id
+                or str(ev.get("source_id")) == evidence_id
+            ),
+            None,
+        )
         if not target_ev:
-            if evidence_list:
-                target_ev = evidence_list[0]
-            else:
-                raise PhaseNotFoundError(f"Evidence {evidence_id} not found for finding {finding_id}")
+            raise PhaseNotFoundError(
+                f"Evidence {evidence_id} not found for finding {finding_id}"
+            )
 
         digest = hash_evidence(target_ev)
         commitment = EvidenceCommitment(
@@ -193,10 +230,10 @@ class BlockchainIntegrityService:
                         try:
                             self.register_finding_commitment(fid, output_path=str(store_dir))
                             count += 1
-                        except Exception:
-                            pass
-            except Exception:
-                continue
+                        except Exception as exc:
+                            logger.warning("Seeding finding %s failed: %s", fid, exc)
+            except Exception as exc:
+                logger.warning("Seeding phase store %s failed: %s", dirname, exc)
 
         # Also seed sample submissions if available
         for entity_id in ["CSE-A", "CSE-B", "CSE-011", "CSE-012", "CSE-014"]:
@@ -210,24 +247,18 @@ class BlockchainIntegrityService:
                         data_directory=data_dir,
                     )
                     count += 1
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.warning("Seeding submission %s failed: %s", sub_id, exc)
 
         return count
 
     def list_records(self) -> list[LedgerRecord]:
-        records = self.client.list_records()
-        if not records:
-            self.seed_initial_commitments()
-            records = self.client.list_records()
-        return records
+        # Read-only: never seed records as a side effect of a query.
+        return self.client.list_records()
 
     def get_all_history(self) -> list[LedgerHistoryEntry]:
-        history = self.client.get_all_history()
-        if not history:
-            self.seed_initial_commitments()
-            history = self.client.get_all_history()
-        return history
+        # Read-only: never seed records as a side effect of a query.
+        return self.client.get_all_history()
 
     def get_record(self, record_id: str) -> LedgerRecord | None:
         return self.client.get_record(record_id)

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
 from pathlib import Path
 
 from app.analytics.supervisory_risk.config import (
@@ -29,7 +28,6 @@ def write_manifest(
         "stage": "Phase 9 Supervisory Risk Engine + Manual Review Prioritisation",
         "schema_version": SCHEMA_VERSION,
         "dataset_id": dataset_id,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
         "input_paths": bundle.source_paths,
         "input_phase_counts": bundle.phase_counts,
         "dimensions": DIMENSIONS,

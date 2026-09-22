@@ -7,7 +7,7 @@ echo "============================================================"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 NETWORK_DIR="${SCRIPT_DIR}/../network"
-CHAINCODE_DIR="${SCRIPT_DIR}/../chaincode/SENTRA-integrity"
+CHAINCODE_DIR="${SCRIPT_DIR}/../chaincode/sat-sa-integrity"
 
 export COMPOSE_PROJECT_NAME="SENTRA"
 export CHANNEL_NAME="SENTRA-channel"

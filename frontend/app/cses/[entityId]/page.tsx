@@ -172,24 +172,34 @@ export default function CSEDetailPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-wrap items-center justify-end gap-2">
-        <button
-          onClick={handlePrintPdf}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Link
+          href="/cses"
           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface-secondary)] text-xs font-medium text-[var(--fg)] hover:bg-[var(--border)] transition shadow-sm cursor-pointer"
-          title="Open printable examination dossier (Save as PDF)"
         >
-          <Printer className="w-3.5 h-3.5 text-sky-500" />
-          <span>Print / PDF Dossier</span>
-        </button>
-        <button
-          onClick={handleDownloadJson}
-          disabled={downloadingJson}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface-secondary)] text-xs font-medium text-[var(--fg)] hover:bg-[var(--border)] transition shadow-sm disabled:opacity-50 cursor-pointer"
-          title="Download full JSON audit dossier"
-        >
-          <Download className="w-3.5 h-3.5 text-[var(--muted)]" />
-          <span>{downloadingJson ? "Exporting..." : "Audit JSON"}</span>
-        </button>
+          <ArrowLeft className="w-3.5 h-3.5 text-[var(--muted)]" />
+          <span>Back</span>
+        </Link>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={handlePrintPdf}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface-secondary)] text-xs font-medium text-[var(--fg)] hover:bg-[var(--border)] transition shadow-sm cursor-pointer"
+            title="Open printable examination dossier (Save as PDF)"
+          >
+            <Printer className="w-3.5 h-3.5 text-sky-500" />
+            <span>Print / PDF Dossier</span>
+          </button>
+          <button
+            onClick={handleDownloadJson}
+            disabled={downloadingJson}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface-secondary)] text-xs font-medium text-[var(--fg)] hover:bg-[var(--border)] transition shadow-sm disabled:opacity-50 cursor-pointer"
+            title="Download full JSON audit dossier"
+          >
+            <Download className="w-3.5 h-3.5 text-[var(--muted)]" />
+            <span>{downloadingJson ? "Exporting..." : "Audit JSON"}</span>
+          </button>
+        </div>
       </div>
 
       {/* Editorial Identity & Risk Hero */}

@@ -2,14 +2,17 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shutil
 from pathlib import Path
 
 import duckdb
 import polars as pl
+import pytest
 from fastapi.testclient import TestClient
 
 from app.analytics.features.feature_pipeline import generate_features
 from app.analytics.peer_anomaly.engine import run_peer_anomaly
+from app.config import settings
 from app.main import app
 
 
@@ -34,13 +37,16 @@ def test_peer_anomaly_engine_outputs_are_traceable_and_deterministic(tmp_path: P
     assert not {"risk_score", "is_peer_deviation", "ground_truth"} & set(pl.read_parquet(first / "findings.parquet").columns)
 
 
-def test_peer_anomaly_api_endpoints(tmp_path: Path) -> None:
+def test_peer_anomaly_api_endpoints(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(settings, "data_dir", tmp_path)
     source = Path(__file__).resolve().parents[1] / "data" / "processed" / "phase4-final"
+    input_dir = tmp_path / "api-input"
+    shutil.copytree(source, input_dir)
     output = tmp_path / "api-output"
     client = TestClient(app)
     rules = client.get("/analytics/peer-anomaly/rules")
     assert rules.status_code == 200
-    run = client.post("/analytics/peer-anomaly/run", json={"input_path": str(source), "output_path": str(output), "dataset_id": "api-test"})
+    run = client.post("/analytics/peer-anomaly/run", json={"input_path": str(input_dir), "output_path": str(output), "dataset_id": "api-test"})
     assert run.status_code == 200
     findings = client.get("/analytics/peer-anomaly/findings", params={"output_path": str(output)})
     assert findings.status_code == 200 and findings.json()

@@ -89,7 +89,7 @@ export default function BlockchainPage() {
       }
     } catch (err: any) {
       console.error("Failed loading blockchain ledger data:", err);
-      setError(err.message || "Failed connecting to Hyperledger Fabric network");
+      setError(err.message || "Failed loading ledger state");
     } finally {
       setLoading(false);
     }
@@ -131,7 +131,7 @@ export default function BlockchainPage() {
         recordId: targetId,
         status: "UNAVAILABLE",
         localHash: "",
-        message: err.message || "Failed contacting Fabric ledger node",
+        message: err.message || "Ledger verification unavailable",
       });
     } finally {
       setVerifying(false);
@@ -196,10 +196,11 @@ export default function BlockchainPage() {
 
     let prev = "0000000000000000000000000000000000000000000000000000000000000000";
 
-    // Genesis Block
+    // Genesis anchor: visual start of the local hash chain. This is a local
+    // demo anchor, not an on-chain Fabric genesis block.
     list.push({
       blockNumber: 0,
-      txId: "tx-genesis-orderer-init",
+      txId: "local-genesis-anchor",
       recordId: "GENESIS-BLOCK",
       recordType: "GENESIS",
       entityId: "SYSTEM",
@@ -208,7 +209,7 @@ export default function BlockchainPage() {
       timestamp: "2026-01-01T00:00:00Z",
       version: 1,
       entry: {
-        txId: "tx-genesis-orderer-init",
+        txId: "local-genesis-anchor",
         timestamp: "2026-01-01T00:00:00Z",
         isDelete: false,
       },
@@ -251,7 +252,7 @@ export default function BlockchainPage() {
   }, [history]);
 
   if (loading) {
-    return <LoadingSkeleton variant="overview" text="Connecting to Fabric Ledger..." />;
+    return <LoadingSkeleton variant="overview" text="Loading local ledger..." />;
   }
 
   if (error) {
@@ -269,7 +270,7 @@ export default function BlockchainPage() {
             </h1>
             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              Operational
+              {status?.mode === "live" ? "Operational" : "Local (permissioned)"}
             </span>
           </div>
           <p className="text-xs sm:text-sm text-[var(--muted)] mt-1">
@@ -337,7 +338,7 @@ export default function BlockchainPage() {
             {history.length}
           </div>
           <span className="text-xs text-[var(--muted)] block">
-            Total Fabric transaction blocks
+            Total committed ledger entries
           </span>
         </div>
 
@@ -350,7 +351,7 @@ export default function BlockchainPage() {
             #{blocks.length > 0 ? blocks.length - 1 : 0}
           </div>
           <span className="text-xs text-emerald-600 dark:text-emerald-400 block font-medium">
-            Sealed by Raft consensus
+            Local permissioned ledger (no Fabric deployment)
           </span>
         </div>
 
@@ -363,7 +364,7 @@ export default function BlockchainPage() {
             {records.length}
           </div>
           <span className="text-xs text-[var(--muted)] block">
-            100% Cryptographic match
+            Committed locally; network {status?.is_connected ? "connected" : "unavailable"}
           </span>
         </div>
       </div>
@@ -595,7 +596,7 @@ export default function BlockchainPage() {
                 Sequential Cryptographic Block Registry
               </h2>
               <p className="text-xs text-[var(--muted)] mt-0.5">
-                Chained blocks linked via SHA-256 pointers and sealed by Hyperledger Fabric consensus
+                Chained blocks linked via SHA-256 pointers in the local permissioned ledger
               </p>
             </div>
             <span className="text-xs font-mono text-[var(--muted)]">
@@ -660,7 +661,7 @@ export default function BlockchainPage() {
                 Ledger Verification
               </h2>
               <p className="text-xs text-[var(--muted)] mt-1">
-                Validate live finding/submission dataset digest against on-chain Fabric commitment
+                Validate live finding/submission dataset digest against committed ledger record
               </p>
             </div>
 
@@ -733,7 +734,7 @@ export default function BlockchainPage() {
                   Cryptographic Reconciliation Result
                 </h2>
                 <p className="text-xs text-[var(--muted)] mt-0.5">
-                  Direct SHA-256 reconciliation between local state and Fabric immutable commitment
+                  Direct SHA-256 reconciliation between local state and committed ledger hash
                 </p>
               </div>
 
@@ -786,7 +787,7 @@ export default function BlockchainPage() {
 
                   <div className="p-3.5 rounded-xl bg-[var(--surface-secondary)] border border-[var(--border)]">
                     <div className="flex items-center justify-between text-[11px] text-[var(--muted)] mb-1">
-                      <span>FABRIC LEDGER WORLD STATE DIGEST</span>
+                      <span>COMMITTED LEDGER DIGEST</span>
                       <span>Committed State</span>
                     </div>
                     <div className="text-xs text-[var(--fg)] break-all select-all font-semibold">
@@ -831,10 +832,16 @@ export default function BlockchainPage() {
         <div className="space-y-6">
           <div className="p-5 rounded-2xl border border-[var(--border)] bg-[var(--surface)] grid grid-cols-2 md:grid-cols-4 gap-4 text-xs font-mono">
             <div>
-              <span className="text-[11px] text-[var(--muted)] uppercase block">Network Status</span>
-              <span className="font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5 mt-1">
-                <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                Operational
+              <span className="text-[11px] text-[var(--muted)] uppercase block">Ledger Status</span>
+              <span
+                className={`font-semibold flex items-center gap-1.5 mt-1 ${
+                  status?.is_connected
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : "text-amber-600 dark:text-amber-400"
+                }`}
+              >
+                <span className={`w-2 h-2 rounded-full ${status?.is_connected ? "bg-emerald-500" : "bg-amber-500"}`} />
+                {status?.is_connected ? "Connected" : "Unavailable"}
               </span>
             </div>
             <div>
@@ -848,7 +855,7 @@ export default function BlockchainPage() {
             <div>
               <span className="text-[11px] text-[var(--muted)] uppercase block">Chaincode</span>
               <span className="font-semibold text-[var(--fg)] block mt-1">
-                {status?.chaincode || "sentra-integrity"} v{status?.chaincode_version || "1.0.0"}
+                {status?.chaincode || "SENTRA-integrity"} v{status?.chaincode_version || "1.0.0"}
               </span>
             </div>
           </div>
@@ -856,52 +863,45 @@ export default function BlockchainPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="p-5 rounded-2xl border border-[var(--border)] bg-[var(--surface)] space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-mono uppercase tracking-wider text-[var(--muted)]">Orderer Node</span>
+                <span className="text-xs font-mono uppercase tracking-wider text-[var(--muted)]">Ledger Node</span>
                 <span className="w-2 h-2 rounded-full bg-emerald-500" />
               </div>
               <div className="text-sm font-semibold text-[var(--fg)] font-mono">
-                orderer.sentra.internal:7050
+                {status?.peer_endpoint || "localhost:7051"}
               </div>
               <p className="text-xs text-[var(--muted)]">
-                Raft Consensus leader packaging verified transactions into immutable blocks.
+                Local permissioned integrity ledger. Hash-chained commitments are recorded and verified locally; no external nodes are required.
               </p>
               <div className="pt-2 border-t border-[var(--border)] text-xs font-mono text-[var(--muted)] flex justify-between">
-                <span>MSP: OrdererMSP</span>
-                <span>Port: 7050</span>
+                <span>Deployment: {status?.mode || "local-permissioned"}</span>
               </div>
             </div>
 
             <div className="p-5 rounded-2xl border border-[var(--border)] bg-[var(--surface)] space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-mono uppercase tracking-wider text-[var(--muted)]">Peer CSE-A (Org1)</span>
+                <span className="text-xs font-mono uppercase tracking-wider text-[var(--muted)]">Supervisory Identity</span>
                 <span className="w-2 h-2 rounded-full bg-emerald-500" />
               </div>
-              <div className="text-sm font-semibold text-[var(--fg)] font-mono">
-                peer0.csea.sentra.internal:7051
-              </div>
+              <div className="text-sm font-semibold text-[var(--fg)] font-mono">SupervisorMSP</div>
               <p className="text-xs text-[var(--muted)]">
-                Endorsing peer validating telemetry submissions and analytical findings for CSE-A.
+                Supervisory authority identity under which findings, evidence, and submission digests are committed to the ledger.
               </p>
               <div className="pt-2 border-t border-[var(--border)] text-xs font-mono text-[var(--muted)] flex justify-between">
-                <span>MSP: Org1MSP</span>
-                <span>Port: 7051</span>
+                <span>Chaincode: SENTRA-integrity</span>
               </div>
             </div>
 
             <div className="p-5 rounded-2xl border border-[var(--border)] bg-[var(--surface)] space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-mono uppercase tracking-wider text-[var(--muted)]">Peer CSE-B (Org2)</span>
-                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                <span className="text-xs font-mono uppercase tracking-wider text-[var(--muted)]">Topology Notes</span>
+                <span className="w-2 h-2 rounded-full bg-amber-500" />
               </div>
-              <div className="text-sm font-semibold text-[var(--fg)] font-mono">
-                peer0.cseb.sentra.internal:8051
-              </div>
+              <div className="text-sm font-semibold text-[var(--fg)]">Design Preview Only</div>
               <p className="text-xs text-[var(--muted)]">
-                Supervisory peer maintaining distributed world state replica and cross-entity audits.
+                A distributed Hyperledger Fabric topology (Raft orderer, Org1/Org2 peers) is a design preview and is NOT deployed. All ledger behaviour shown here is the local permissioned implementation.
               </p>
               <div className="pt-2 border-t border-[var(--border)] text-xs font-mono text-[var(--muted)] flex justify-between">
-                <span>MSP: Org2MSP</span>
-                <span>Port: 8051</span>
+                <span>Status: UNVERIFIED</span>
               </div>
             </div>
           </div>

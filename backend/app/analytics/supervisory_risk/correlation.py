@@ -29,6 +29,8 @@ class CorrelatedGroupSignal:
     assessment_strength: str
     evidence_strength: str | None
     rationale: str
+    primary_detector: str = ""
+    primary_phase: str = ""
 
 
 SEVERITY_RANK = {"Critical": 4, "High": 3, "Medium": 2, "Low": 1}
@@ -146,6 +148,8 @@ def evaluate_correlation_groups(
                 assessment_strength=highest_str,
                 evidence_strength=overall_ev_str,
                 rationale=rationale,
+                primary_detector=primary_signal.detector_id,
+                primary_phase=primary_signal.source_phase,
             )
         )
 
@@ -169,8 +173,8 @@ def build_risk_contributions(
         content_for_id = f"{entity_id}:{gs.group_id}:{gs.dimension}:{gs.final_value:.2f}"
         contrib_id = hashlib.sha256(content_for_id.encode("utf-8")).hexdigest()[:16]
 
-        primary_phase = gs.corroborating_phases[0] if gs.corroborating_phases else "analytics"
-        primary_detector = gs.participating_detectors[0] if gs.participating_detectors else "composite"
+        primary_phase = gs.primary_phase or (gs.corroborating_phases[0] if gs.corroborating_phases else "analytics")
+        primary_detector = gs.primary_detector or (gs.participating_detectors[0] if gs.participating_detectors else "composite")
 
         contributions.append(
             RiskContribution(

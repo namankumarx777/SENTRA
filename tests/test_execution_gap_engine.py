@@ -2,15 +2,18 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shutil
 from pathlib import Path
 
 import duckdb
 import polars as pl
+import pytest
 from fastapi.testclient import TestClient
 
 from app.analytics.execution_gap.engine import run_execution_gap
 from app.analytics.execution_gap.definitions import DETECTORS
 from app.analytics.features.feature_pipeline import generate_features
+from app.config import settings
 from app.main import app
 
 
@@ -39,13 +42,16 @@ def test_execution_gap_engine_is_traceable_deterministic_and_separate(tmp_path: 
     assert "not statistical confidence" in manifest["evidence_strength_methodology"]
 
 
-def test_execution_gap_api_endpoints(tmp_path: Path) -> None:
+def test_execution_gap_api_endpoints(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(settings, "data_dir", tmp_path)
     source = Path(__file__).resolve().parents[1] / "data" / "processed" / "phase4-final"
+    input_dir = tmp_path / "api-input"
+    shutil.copytree(source, input_dir)
     output = tmp_path / "api-output"
     client = TestClient(app)
     rules = client.get("/analytics/execution-gap/rules")
     assert rules.status_code == 200 and len(rules.json()) == 5
-    run = client.post("/analytics/execution-gap/run", json={"input_path": str(source), "output_path": str(output), "dataset_id": "api-test"})
+    run = client.post("/analytics/execution-gap/run", json={"input_path": str(input_dir), "output_path": str(output), "dataset_id": "api-test"})
     assert run.status_code == 200 and run.json()["finding_count"] >= 0
     findings = client.get("/analytics/execution-gap/findings", params={"output_path": str(output)})
     assert findings.status_code == 200

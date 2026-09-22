@@ -1,1 +1,2 @@
-frontend - .\.venv\Scripts\python.exe -m uvicorn app.main:app --reload
+backend - .\.venv\Scripts\python.exe -m uvicorn app.main:app --reload
+frontend - npm run dev

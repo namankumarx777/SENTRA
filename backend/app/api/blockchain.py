@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -8,6 +9,8 @@ from pydantic import BaseModel, Field
 
 from app.api.security import safe_resolve_path
 from app.config import settings
+
+logger = logging.getLogger("satsa.api.blockchain")
 
 from app.analytics.store import PhaseNotFoundError
 from app.blockchain.models import (
@@ -65,8 +68,16 @@ def register_submission_endpoint(
             else:
                 data_dir = safe_resolve_path(settings.data_dir, request.data_directory)
         else:
-            default_processed = settings.data_dir / "data/processed"
-            data_dir = default_processed if default_processed.exists() else settings.data_dir
+            # Resolve the canonical submission directory under the configured data
+            # root. settings.data_dir already points at the repository's data dir,
+            # so join only the child directory name (no duplicate "data" segment).
+            default_processed = settings.data_dir / "processed"
+            if default_processed.is_dir():
+                data_dir = default_processed
+            elif (settings.data_dir / "synthetic").is_dir():
+                data_dir = settings.data_dir / "synthetic"
+            else:
+                data_dir = settings.data_dir
 
         record, tx_id = integrity_service.register_submission_commitment(
             submission_id=submission_id,
@@ -75,7 +86,12 @@ def register_submission_endpoint(
             data_directory=data_dir,
         )
     except (FileNotFoundError, NotADirectoryError, ValueError) as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        # Do not echo the filesystem path in the response; log it server-side only.
+        logger.warning("Submission registration failed for %s: %s", submission_id, exc)
+        raise HTTPException(
+            status_code=400,
+            detail="Submission data directory is not available under the configured data root.",
+        ) from exc
     except ConnectionError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 

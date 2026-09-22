@@ -47,7 +47,7 @@
                                     │
                                     ▼
 ┌────────────────────────────────────────────────────────────────────────┐
-│ Cohort Benchmarking (PB001–PB004) & PyOD Multivariate Isolation Forest │
+│ Cohort Benchmarking (PB001–PB004) & scikit-learn Multivariate Isolation Forest │
 └───────────────────────────────────┬────────────────────────────────────┘
                                     │
                                     ▼

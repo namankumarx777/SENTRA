@@ -70,7 +70,7 @@ SENTRA evaluates entities across 6 weighted operational dimensions:
 3. **Remediation (20%)**: Asset vulnerability remediation execution gaps (`EG003`), unremediated assets (`R003`), and cohort remediation deviations (`PB003`).
 4. **Monitoring (15%)**: Unmonitored critical assets (`R005`, `NS002`) and inactive monitored infrastructure (`NS001`).
 5. **Operational Discipline (10%)**: Alert triage stability and operational volatility.
-6. **Cyber Resilience (10%)**: Contextual multivariate anomaly score from PyOD Isolation Forest (`AN001`, bounded $[0, 25.0]$).
+6. **Cyber Resilience (10%)**: Contextual multivariate anomaly score from scikit-learn Isolation Forest (`AN001`, bounded $[0, 25.0]$).
 
 ---
 

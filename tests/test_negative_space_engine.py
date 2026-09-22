@@ -2,14 +2,17 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shutil
 from pathlib import Path
 
 import duckdb
 import polars as pl
+import pytest
 from fastapi.testclient import TestClient
 
 from app.analytics.features.feature_pipeline import generate_features
 from app.analytics.negative_space.engine import run_negative_space
+from app.config import settings
 from app.main import app
 
 
@@ -35,13 +38,16 @@ def test_negative_space_engine_is_traceable_deterministic_and_queryable(tmp_path
     assert not {"negative_space", "is_negative_space", "risk_score"} & set(pl.read_parquet(first / "findings.parquet").columns)
 
 
-def test_negative_space_api_endpoints(tmp_path: Path) -> None:
+def test_negative_space_api_endpoints(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(settings, "data_dir", tmp_path)
     source = Path(__file__).resolve().parents[1] / "data" / "processed" / "phase4-final"
+    input_dir = tmp_path / "api-input"
+    shutil.copytree(source, input_dir)
     output = tmp_path / "api-output"
     client = TestClient(app)
     rules = client.get("/analytics/negative-space/rules")
     assert rules.status_code == 200 and len(rules.json()) == 6
-    run = client.post("/analytics/negative-space/run", json={"input_path": str(source), "output_path": str(output), "dataset_id": "api-test"})
+    run = client.post("/analytics/negative-space/run", json={"input_path": str(input_dir), "output_path": str(output), "dataset_id": "api-test"})
     assert run.status_code == 200
     findings = client.get("/analytics/negative-space/findings", params={"output_path": str(output)})
     assert findings.status_code == 200 and findings.json()

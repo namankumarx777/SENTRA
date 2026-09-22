@@ -2,8 +2,8 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from backend.app.main import app
-from backend.app.api.security import safe_resolve_path, PathTraversalError
+from app.main import app
+from app.api.security import safe_resolve_path, PathTraversalError
 
 client = TestClient(app)
 
