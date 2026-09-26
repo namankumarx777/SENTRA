@@ -1,0 +1,240 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "SENTRA Runtime Architecture",
+    "output": "docs/architecture.html",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "telemetry-pipeline",
+        "label": "Telemetry Ingestion Pipeline",
+        "focus": ["cse_sources", "ingestion_svc", "analytics_core", "risk_engine", "parquet_store"],
+        "note": "Periodic CSE telemetry ingested, normalized, evaluated against rules, and persisted."
+      },
+      {
+        "id": "supervisory-audit",
+        "label": "Supervisory Inspection & Review",
+        "focus": ["inspector", "web_ui", "api_gateway", "parquet_store"],
+        "note": "Auditor inspects multi-dimensional risk scores, evidence chains, and triage queue."
+      },
+      {
+        "id": "integrity-provenance",
+        "label": "Cryptographic Integrity Layer",
+        "focus": ["risk_engine", "fabric_ledger"],
+        "note": "Deterministic SHA-256 digests of findings and evidence committed to Hyperledger Fabric."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "cse_sources",
+      "type": "external",
+      "label": "CSE Submissions",
+      "sublabel": "Periodic SOC Telemetry",
+      "tag": "Alerts / Cases / Logs",
+      "pos": [50, 280],
+      "size": [130, 60]
+    },
+    {
+      "id": "ingestion_svc",
+      "type": "backend",
+      "label": "Ingestion Service",
+      "sublabel": "Phases 2-3 Pipeline",
+      "tag": "Strict Schema",
+      "pos": [270, 280],
+      "size": [140, 60]
+    },
+    {
+      "id": "analytics_core",
+      "type": "backend",
+      "label": "Analytics Core",
+      "sublabel": "Polars & DuckDB",
+      "tag": "Rules & Gaps",
+      "pos": [500, 280],
+      "size": [140, 60]
+    },
+    {
+      "id": "risk_engine",
+      "type": "backend",
+      "label": "Risk Engine",
+      "sublabel": "Phase 9 Aggregator",
+      "tag": "Anti-Double-Count",
+      "pos": [730, 280],
+      "size": [140, 60]
+    },
+    {
+      "id": "parquet_store",
+      "type": "database",
+      "label": "Parquet Store",
+      "sublabel": "Columnar Canonical Data",
+      "tag": "Zero External DB",
+      "pos": [960, 280],
+      "size": [140, 60]
+    },
+    {
+      "id": "inspector",
+      "type": "external",
+      "label": "Supervisory Auditor",
+      "sublabel": "Regulatory Officer",
+      "tag": "Air-Gapped Client",
+      "pos": [500, 100],
+      "size": [140, 60]
+    },
+    {
+      "id": "web_ui",
+      "type": "frontend",
+      "label": "Next.js Dashboard",
+      "sublabel": "Turbopack + React 19",
+      "tag": "Web UI :3000",
+      "brand": "next-js",
+      "pos": [730, 100],
+      "size": [140, 60]
+    },
+    {
+      "id": "api_gateway",
+      "type": "backend",
+      "label": "FastAPI Gateway",
+      "sublabel": "FastAPI :8000",
+      "tag": "Security Middlewares",
+      "brand": "fastapi",
+      "pos": [960, 100],
+      "size": [140, 60]
+    },
+    {
+      "id": "anomaly_engine",
+      "type": "backend",
+      "label": "Anomaly & Cohort",
+      "sublabel": "PyOD Isolation Forest",
+      "tag": "Phase 8 Baselines",
+      "pos": [500, 460],
+      "size": [140, 60]
+    },
+    {
+      "id": "fabric_ledger",
+      "type": "security",
+      "label": "Hyperledger Fabric",
+      "sublabel": "Permissioned Peer",
+      "tag": "SHA-256 Ledger",
+      "pos": [730, 460],
+      "size": [140, 60]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "SENTRA Air-Gapped Supervisory Host Runtime",
+      "wraps": ["ingestion_svc", "analytics_core", "risk_engine", "parquet_store", "api_gateway", "web_ui", "anomaly_engine", "fabric_ledger"],
+      "pad": 24
+    },
+    {
+      "kind": "security-group",
+      "label": "Deterministic Analytics & Storage Enclave",
+      "wraps": ["analytics_core", "risk_engine", "parquet_store", "anomaly_engine"],
+      "pad": 16
+    }
+  ],
+  "connections": [
+    {
+      "id": "conn-cse-ingest",
+      "from": "cse_sources",
+      "to": "ingestion_svc",
+      "label": "telemetry batch",
+      "variant": "emphasis"
+    },
+    {
+      "id": "conn-ingest-analytics",
+      "from": "ingestion_svc",
+      "to": "analytics_core",
+      "label": "canonical parquet",
+      "variant": "emphasis"
+    },
+    {
+      "id": "conn-analytics-risk",
+      "from": "analytics_core",
+      "to": "risk_engine",
+      "label": "findings",
+      "variant": "emphasis"
+    },
+    {
+      "id": "conn-risk-store",
+      "from": "risk_engine",
+      "to": "parquet_store",
+      "label": "persist scores",
+      "variant": "emphasis"
+    },
+    {
+      "id": "conn-inspector-ui",
+      "from": "inspector",
+      "to": "web_ui",
+      "label": "audit session"
+    },
+    {
+      "id": "conn-ui-api",
+      "from": "web_ui",
+      "to": "api_gateway",
+      "label": "HTTPS :8000"
+    },
+    {
+      "id": "conn-api-store",
+      "from": "api_gateway",
+      "to": "parquet_store",
+      "label": "query parquet",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 50
+    },
+    {
+      "id": "conn-analytics-anomaly",
+      "from": "analytics_core",
+      "to": "anomaly_engine",
+      "label": "features",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 50
+    },
+    {
+      "id": "conn-risk-fabric",
+      "from": "risk_engine",
+      "to": "fabric_ledger",
+      "label": "register hash",
+      "variant": "security",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 50
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Ingestion & Analytics Engine",
+      "items": [
+        "Phases 2-3 ingest CSV/JSON/Parquet into strict canonical schemas",
+        "Deterministic feature derivation & 8 isolated supervisory rules (R001-R008)",
+        "Execution gap & negative space detectors spot unmonitored blindspots",
+        "PyOD Isolation Forest establishes contextual peer-cohort baselines"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Supervisory Risk & Triage",
+      "items": [
+        "Phase 9 multi-dimensional risk scores across 6 operational dimensions",
+        "Anti-double-counting correlation boost consolidates overlapping signals",
+        "Ranked manual review queue optimizes human inspector audit time",
+        "Dynamic denominator exclusion for unassessable telemetry"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Integrity & Offline Security",
+      "items": [
+        "100% offline runtime: zero external cloud, LLM, or SaaS dependencies",
+        "Local columnar Parquet store queried via in-process Polars & DuckDB",
+        "FastAPI gateway enforces strict CSP, frame options, & path traversal guards",
+        "Hyperledger Fabric commits SHA-256 hashes for tamper-evident provenance"
+      ]
+    }
+  ]
+}
